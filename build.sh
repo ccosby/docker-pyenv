@@ -4,6 +4,12 @@ shopt -s nullglob
 
 repo=pyenv
 
+if test -z "$DOCKER_ID_USER"
+then
+    echo "ERROR: Please set env DOCKER_ID_USER, then docker login"
+    exit 1
+fi
+
 for f in bases/*/Dockerfile
 do
     repotag=$(basename $(dirname $f))
@@ -21,7 +27,7 @@ do
         for tag in $tagset
         do
             : ${PYTHON_VERSION:=$tag}
-            tags="--tag $repo:$tag-$repotag $tags"
+            tags="--tag $repo:$tag-$repotag --tag $DOCKER_ID_USER/$repo:$tag-$repotag $tags"
         done
 
         dockerfile=$(mktemp --tmpdir=$PWD)
@@ -42,3 +48,5 @@ _EOF_
         rm -f $dockerfile
     done
 done
+
+docker push $DOCKER_ID_USER/$repo
