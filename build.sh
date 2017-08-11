@@ -2,7 +2,8 @@
 
 shopt -s nullglob
 
-repo=pyenv
+export REPO REPOTAG PYTHON_VERSION
+REPO=pyenv
 
 if test -z "$DOCKER_ID_USER"
 then
@@ -12,8 +13,8 @@ fi
 
 for f in bases/*/Dockerfile
 do
-    repotag=$(basename $(dirname $f))
-    docker build -f $f -t $repo:$repotag .
+    REPOTAG=$(basename $(dirname $f))
+    docker build -f $f -t $REPO:$REPOTAG .
 
     for tagset in \
         "3.6.2 3.6 3" \
@@ -27,26 +28,14 @@ do
         for tag in $tagset
         do
             : ${PYTHON_VERSION:=$tag}
-            tags="--tag $repo:$tag-$repotag --tag $DOCKER_ID_USER/$repo:$tag-$repotag $tags"
+            tags="--tag $REPO:$tag-$REPOTAG --tag $DOCKER_ID_USER/$REPO:$tag-$REPOTAG $tags"
         done
 
         dockerfile=$(mktemp --tmpdir=$PWD)
-        cat >$dockerfile <<_EOF_
-FROM $repo:$repotag
-RUN pyenv install $PYTHON_VERSION
-RUN pyenv global $PYTHON_VERSION
-RUN pyenv rehash
-
-USER root
-RUN yum clean all
-RUN yum remove -y gcc gcc-c++ make git patch *-devel kernel-headers glibc-headers
-RUN rm -rf /var/cache/yum/* /var/lib/yum/repos/*
-
-USER pyuser
-_EOF_
+        envsubst >$dockerfile <$(dirname $f)/pyenv.Dockerfile
         docker build -f $dockerfile $tags .
         rm -f $dockerfile
     done
 done
 
-docker push $DOCKER_ID_USER/$repo
+docker push $DOCKER_ID_USER/$REPO
